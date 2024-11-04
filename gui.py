@@ -25,7 +25,7 @@ class SquareWidget(QLabel):
         self.setFixedSize(50, 50)
         self.update_square()
 
-    def update_square(self, invalid=False):
+    def update_square(self, invalid=False, win=False):
         """Updates the display based on the square's state."""
         pixmap = QPixmap(self.size())
         pixmap.fill(Qt.white)
@@ -33,7 +33,11 @@ class SquareWidget(QLabel):
         painter = QPainter(pixmap)
         b = self.board.board
         square_state = b[self.r][self.c]
-        color = QColor('Red') if invalid else QColor('Black')
+        color = QColor('Black')
+        if win:
+            color = QColor('Blue')
+        if invalid:
+            color = QColor('Red')
         if square_state == 1:  # Draw a star
             painter.setPen(QPen(color, 4, Qt.SolidLine))
             painter.setBrush(QBrush(color, Qt.SolidPattern))
@@ -61,9 +65,7 @@ class SquareWidget(QLabel):
         
         # GameGUI->CentralWidget->SquareWidget
         gameGui = self.parent().parent()
-        gameGui.gameSquares[self.r][self.c].update_square()
-        gameGui.solverSquares[self.r][self.c].update_square()
-        gameGui.updateInvalidStars()
+        gameGui.updateBoard()
 
 class OutlineWidget(QLabel):
     """A widget representing an outline rectangle on the board."""
@@ -80,7 +82,7 @@ class OutlineWidget(QLabel):
         small = 5
         large = 50
         
-        thin = 2
+        thin = 1
         center = small // 2
 
 
@@ -120,6 +122,8 @@ class OutlineWidget(QLabel):
         painter = QPainter(pixmap)
         painter.setBrush(QBrush(QColor('Black')))
         for line in lines:
+            if (i == 2 and j == 2):
+                print(line)
             painter.drawRect(*line)
         painter.end()
         self.setPixmap(pixmap)
@@ -200,7 +204,9 @@ class GameGUI(QMainWindow):
                     s3 = self.board.segs[r2][c1]
                     s4 = self.board.segs[r2][c2]
                     thick = (s1 != s2 or s1 != s3 or s1 != s4)
-
+                if (i == 2) and (j == 2):
+                    print(thick)
+                    print(s1, s2, s3, s4)
                 self.gameOutlines[i][j] = OutlineWidget(i, j, thick)
                 self.solverOutlines[i][j] = OutlineWidget(i, j, thick)
 
@@ -278,10 +284,11 @@ class GameGUI(QMainWindow):
         layout.addStretch(0)
         return layout
 
-    def updateInvalidStars(self):
+    def updateBoard(self):
         n = self.board.board_size
         b = self.board.board
 
+        # Check if any stars are invalid
         invalid = [[False] * n for _ in range(n)]
 
         # Check Adjacency
@@ -319,12 +326,38 @@ class GameGUI(QMainWindow):
 
         # Check segments
 
-        # Update invalid stars
+        # Check if board state is winning
+        # Update any invalid squares
+        star_count = 0
+        any_invalid = False
         for r in range(n):
             for c in range(n):
+                if self.board.board[r][c] == 1:
+                    star_count += 1
+                any_invalid |= invalid[r][c]
+
                 self.gameSquares[r][c].update_square(invalid=invalid[r][c])
                 self.solverSquares[r][c].update_square(invalid=invalid[r][c])
 
+        # If board is winning, call the win method
+        if star_count == (self.board.n_stars * self.board.board_size) and not any_invalid:
+            # Win!
+            self.win()
+
+    def win(self):
+        """
+        Function to handle winning the game
+        """
+        # Update the label to say: "Game: You Win!"
+
+        # Update the stars on the board
+        n = self.board.board_size
+        for r in range(n):
+            for c in range(n):
+                # Make stars blue
+                if self.board.board[r][c] == 1:
+                    self.gameSquares[r][c].update_square(win=True)
+                    self.solverSquares[r][c].update_square(win=True)
 
     def run(self):
         """Runs the GUI application."""
