@@ -7,8 +7,10 @@ from PyQt5.QtWidgets import QApplication
 
 def main():
     # Set up command-line argument parsing
-    parser = argparse.ArgumentParser(description="Play Star Battle or Queens.")
+    parser = argparse.ArgumentParser(description="Star Battle Game/Solver.")
     parser.add_argument("--board", type=str, default=None, 
+                        help="File path of the board to load.")
+    parser.add_argument("--board_img", type=str, default=None,
                         help="File path of the board image to load.")
     parser.add_argument("--autosolve", type=bool, default=False, 
                         help="If True, automatically runs the solver.")
