@@ -34,7 +34,16 @@ class SquareWidget(QLabel):
         self.update_square()
 
     def update_square(self, color=QColor('Black'), background=QColor('White')):
-        """Updates the display based on the square's state."""
+        """
+        Updates the display based on the square's state.
+        
+        board.board_state[r][c] denotes symbol: 0 empty, 1 star, 2 X
+        board.invalid[r][c] denotes if (r,c) is an invalid star location
+        board.winning denotes if board is a win
+
+        symbol color is black by default, red for invalid stars, blue for winning stars
+        background color is white by default, can be colored by segment
+        """
         pixmap = QPixmap(self.size())
         pixmap.fill(background)
 
@@ -55,9 +64,18 @@ class SquareWidget(QLabel):
         self.setPixmap(pixmap)
 
     def mousePressEvent(self, event):
-        """Handle left or right click events to toggle the square's state."""
+        """
+        Handle left or right click events to toggle the square's state.
+        
+        If this is an interactive SquareWidget:
+        - Modify the board state at this square
+        - Update the board object to calculate invalid or wins
+        - Redraw the board widgets
+        """
         if not self.interactive:
             return
+        
+        # Set the board_state in the board object
         b = self.board.board_state
         if event.button() == Qt.LeftButton:
             curr_state = b[self.r][self.c]
@@ -67,9 +85,12 @@ class SquareWidget(QLabel):
             new_state = 2 if curr_state != 2 else 0  # Toggle between 0 and 1
         b[self.r][self.c] = new_state
         
-        # GameGUI->CentralWidget->SquareWidget
-        gameGui = self.parent().parent()
-        gameGui.updateBoard()
+        # Update the board and calculate any checks
+        self.board.update()
+
+        # GameGUI->CentralWidget->BoardWidget->SquareWidget
+        boardWidget = self.parent()
+        boardWidget.update()
 
 class OutlineWidget(QLabel):
     """A widget representing an outline rectangle on the board."""
@@ -130,6 +151,63 @@ class OutlineWidget(QLabel):
         painter.end()
         self.setPixmap(pixmap)
 
+class GameBoardWidget(QWidget):
+    """
+    Widget to capture the interactive game board
+    """
+    def __init__(self, board: Board):
+        super().__init__()
+        self.board = board
+
+        layout = QGridLayout()
+
+        # Add outlines and board squares in a grid
+        n_squares = self.board.board_size
+        n_grids = 2 * n_squares + 1
+
+        self.board_squares = [[None] * n_squares for _ in range(n_squares)]
+        self.board_edges = [[None] * n_grids for _ in range(n_grids)]
+
+        for i in range(n_grids):
+            for j in range(n_grids):
+                if (i%2) and (j%2):
+                    # Is a square
+                    r = (i - 1) // 2
+                    c = (j - 1) // 2
+                    widget = SquareWidget(board, r, c, interactive=True)
+                    self.board_squares[r][c] = widget
+                elif (i%2) and not (j%2):
+                    # vertical line
+                    widget = OutlineWidget(i, j, thick=True)
+                    self.board_edges[i][j] = widget
+                elif not (i%2) and (j%2):
+                    # horizontal line
+                    widget = OutlineWidget(i, j, thick=True)
+                    self.board_edges[i][j] = widget
+                else:
+                    # corner
+                    widget = OutlineWidget(i, j, thick=True)
+                    self.board_edges[i][j]
+                layout.addWidget(widget, i, j)
+        layout.setSpacing(0)
+        self.setLayout(layout)
+
+    def update(self):
+        """
+        Update all squares to match the board state
+
+        0: empty, 1: star, 2: x
+        Mark invalid stars as red
+        Mark solved board as all blue
+        """
+
+class SolverBoardWidget(QWidget):
+    """
+    Widget to capture the solver board
+    """
+    def __init__(self, board: Board, solver: Solver):
+        super().__init__()
+
 
 class GameGUI(QMainWindow):
     """Main GUI for the Star Battle or Queens game."""
@@ -146,6 +224,12 @@ class GameGUI(QMainWindow):
         self.gameSquares = None
         # Array of solver square widgets to render (non-interactive game square)
         self.solverSquares = None
+
+
+        self.game_widget = GameBoardWidget(board)
+        self.solver_widget = SolverBoardWidget(board, solver)
+
+
         self.initUI()
 
     def initUI(self):
@@ -159,13 +243,29 @@ class GameGUI(QMainWindow):
         layout = QHBoxLayout()
         central_widget.setLayout(layout)
 
-        self.makeOutlineArray()
+        # self.makeOutlineArray()
 
-        game_board_layout = self.createGameLayout()
-        layout.addLayout(game_board_layout)
+        # game_board_layout = self.createGameLayout()
+        # layout.addLayout(game_board_layout)
 
-        solver_board_layout = self.createSolverLayout()
-        layout.addLayout(solver_board_layout)
+        # solver_board_layout = self.createSolverLayout()
+        # layout.addLayout(solver_board_layout)
+
+        game_layout = QVBoxLayout()
+        game_label = QLabel('Game')
+        game_label.setAlignment(Qt.AlignCenter)
+        game_layout.addWidget(game_label)
+        game_layout.addWidget(self.game_widget)
+        game_layout.addStretch(0)
+
+        solver_layout = QVBoxLayout()
+        solver_label = QLabel('Solver')
+        solver_layout.addWidget(solver_label)
+        solver_layout.addWidget(self.solver_widget)
+        solver_layout.addStretch(0)
+
+        layout.addLayout(game_layout)
+        layout.addLayout(solver_layout)
 
     def makeOutlineArray(self):
         n = self.board.board_size * 2 + 1

@@ -20,6 +20,14 @@ class Board():
         # List of segment objects in board
         self.segments = []
 
+    def update(self):
+        """
+        Function to update the board based on the board_state entries
+
+        Mark invalid stars
+        Record if board is a win
+        """
+        pass
 
 class DefaultBoard(Board):
 
