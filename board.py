@@ -2,6 +2,10 @@
 Class to manage Star-Battle board
 '''
 
+class Segment():
+    def __init__(self) -> None:
+        self.squares = []
+
 class Board():
     def __init__(self) -> None:
         # Stars per row, col, segment
@@ -10,9 +14,11 @@ class Board():
         self.board_size = 0
 
         # 2D array of board state (0 for empty, 1 for star, 2 for X)
-        self.board = None
-        # List of segments in the board
-        self.segs = None
+        self.board_state = None
+        # 2D array of board segments
+        self.board_segments = None
+        # List of segment objects in board
+        self.segments = []
 
 
 class DefaultBoard(Board):
@@ -21,10 +27,10 @@ class DefaultBoard(Board):
         super().__init__()
         self.n_stars = 1
         self.board_size = 5
-        self.board = [[0] * 5 for _ in range(5)]
+        self.board_state = [[0] * 5 for _ in range(5)]
 
-        self.segs = [[0, 0, 0, 0, 0],
-                     [0, 1, 1, 1, 1],
-                     [0, 1, 3, 4, 2],
-                     [3, 3, 3, 4, 2],
-                     [3, 3, 2, 2, 2]]
+        self.board_segments = [[0, 0, 0, 0, 0],
+                               [0, 1, 1, 1, 1],
+                               [0, 1, 3, 4, 2],
+                               [3, 3, 3, 4, 2],
+                               [3, 3, 2, 2, 2]]

@@ -12,7 +12,15 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QPixmap
 
 class SquareWidget(QLabel):
-    """A widget representing a single square on the board."""
+    """
+    A widget representing a single square on the board.
+    
+    A square is initialized with:
+    - board: the board object to read the value from
+    - r: the row in the board
+    - c: the col in the board
+    - interactive: True if this is a square the user can interact with (click to toggle)
+    """
     
     def __init__(self, board, r, c, interactive=False):
         super().__init__()
@@ -25,19 +33,15 @@ class SquareWidget(QLabel):
         self.setFixedSize(50, 50)
         self.update_square()
 
-    def update_square(self, invalid=False, win=False):
+    def update_square(self, color=QColor('Black'), background=QColor('White')):
         """Updates the display based on the square's state."""
         pixmap = QPixmap(self.size())
-        pixmap.fill(Qt.white)
+        pixmap.fill(background)
 
         painter = QPainter(pixmap)
-        b = self.board.board
+        b = self.board.board_state
         square_state = b[self.r][self.c]
-        color = QColor('Black')
-        if win:
-            color = QColor('Blue')
-        if invalid:
-            color = QColor('Red')
+
         if square_state == 1:  # Draw a star
             painter.setPen(QPen(color, 4, Qt.SolidLine))
             painter.setBrush(QBrush(color, Qt.SolidPattern))
@@ -54,7 +58,7 @@ class SquareWidget(QLabel):
         """Handle left or right click events to toggle the square's state."""
         if not self.interactive:
             return
-        b = self.board.board
+        b = self.board.board_state
         if event.button() == Qt.LeftButton:
             curr_state = b[self.r][self.c]
             new_state = 1 if curr_state != 1 else 0  # Toggle between 0 and 1
@@ -79,7 +83,7 @@ class OutlineWidget(QLabel):
         # 2 @a@a@
         # 3 @1@2@
         # 4 @@@@@
-        small = 5
+        small = 6
         large = 50
         
         thin = 1
@@ -122,8 +126,6 @@ class OutlineWidget(QLabel):
         painter = QPainter(pixmap)
         painter.setBrush(QBrush(QColor('Black')))
         for line in lines:
-            if (i == 2 and j == 2):
-                print(line)
             painter.drawRect(*line)
         painter.end()
         self.setPixmap(pixmap)
@@ -185,31 +187,28 @@ class GameGUI(QMainWindow):
                     # Vertical line
                     c1, c2 = j//2 - 1, j//2
                     r = (i - 1) // 2
-                    s1 = self.board.segs[r][c1]
-                    s2 = self.board.segs[r][c2]
+                    s1 = self.board.board_segments[r][c1]
+                    s2 = self.board.board_segments[r][c2]
                     thick = (s1 != s2)
                 elif not i%2 and j%2:
                     # Horizontal line
                     r1, r2 = i//2 - 1, i//2
                     c = (j - 1) // 2
-                    s1 = self.board.segs[r1][c]
-                    s2 = self.board.segs[r2][c]
+                    s1 = self.board.board_segments[r1][c]
+                    s2 = self.board.board_segments[r2][c]
                     thick = (s1 != s2)
                 else:
                     r1, r2 = i//2 - 1, i//2
                     c1, c2 = j//2 - 1, j//2
 
-                    s1 = self.board.segs[r1][c1]
-                    s2 = self.board.segs[r1][c2]
-                    s3 = self.board.segs[r2][c1]
-                    s4 = self.board.segs[r2][c2]
+                    s1 = self.board.board_segments[r1][c1]
+                    s2 = self.board.board_segments[r1][c2]
+                    s3 = self.board.board_segments[r2][c1]
+                    s4 = self.board.board_segments[r2][c2]
                     thick = (s1 != s2 or s1 != s3 or s1 != s4)
-                if (i == 2) and (j == 2):
-                    print(thick)
-                    print(s1, s2, s3, s4)
+
                 self.gameOutlines[i][j] = OutlineWidget(i, j, thick)
                 self.solverOutlines[i][j] = OutlineWidget(i, j, thick)
-
 
     def createGameLayout(self):
         """Sets up the game board section of the UI"""
@@ -246,7 +245,6 @@ class GameGUI(QMainWindow):
 
         layout.addStretch(0)
         return layout
-
 
     def createSolverLayout(self):
         """Sets up the solver board section of the UI"""
@@ -285,8 +283,14 @@ class GameGUI(QMainWindow):
         return layout
 
     def updateBoard(self):
+        """
+        Update the board squares to match the board
+
+        Also scan for invalid stars
+        Also scan for wins
+        """
         n = self.board.board_size
-        b = self.board.board
+        b = self.board.board_state
 
         # Check if any stars are invalid
         invalid = [[False] * n for _ in range(n)]
@@ -332,12 +336,13 @@ class GameGUI(QMainWindow):
         any_invalid = False
         for r in range(n):
             for c in range(n):
-                if self.board.board[r][c] == 1:
+                if b[r][c] == 1:
                     star_count += 1
                 any_invalid |= invalid[r][c]
 
-                self.gameSquares[r][c].update_square(invalid=invalid[r][c])
-                self.solverSquares[r][c].update_square(invalid=invalid[r][c])
+                color = QColor('Red') if invalid[r][c] else QColor('Black')
+                self.gameSquares[r][c].update_square(color=color)
+                self.solverSquares[r][c].update_square(color=color)
 
         # If board is winning, call the win method
         if star_count == (self.board.n_stars * self.board.board_size) and not any_invalid:
@@ -355,9 +360,10 @@ class GameGUI(QMainWindow):
         for r in range(n):
             for c in range(n):
                 # Make stars blue
-                if self.board.board[r][c] == 1:
-                    self.gameSquares[r][c].update_square(win=True)
-                    self.solverSquares[r][c].update_square(win=True)
+                if self.board.board_state[r][c] == 1:
+                    color = QColor('Blue')
+                    self.gameSquares[r][c].update_square(color=color)
+                    self.solverSquares[r][c].update_square(color=color)
 
     def run(self):
         """Runs the GUI application."""
