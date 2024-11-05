@@ -90,7 +90,10 @@ class SquareWidget(QLabel):
 
         # GameGUI->CentralWidget->BoardWidget->SquareWidget
         boardWidget = self.parent()
-        boardWidget.update()
+        centralWidget = boardWidget.parent()
+        game_gui = centralWidget.parent()
+
+        game_gui.updateBoards()
 
 class OutlineWidget(QLabel):
     """A widget representing an outline rectangle on the board."""
@@ -98,18 +101,11 @@ class OutlineWidget(QLabel):
     def __init__(self, i, j, thick):
         super().__init__()
 
-        #   01234
-        # 0 @@@@@
-        # 1 @1@2@
-        # 2 @a@a@
-        # 3 @1@2@
-        # 4 @@@@@
         small = 6
         large = 50
         
         thin = 1
         center = small // 2
-
 
         lines = []
         if (i % 2) and (j % 2):
@@ -168,25 +164,48 @@ class GameBoardWidget(QWidget):
         self.board_squares = [[None] * n_squares for _ in range(n_squares)]
         self.board_edges = [[None] * n_grids for _ in range(n_grids)]
 
+        # Read through the board and add all outline and square elements to the layout
         for i in range(n_grids):
             for j in range(n_grids):
-                if (i%2) and (j%2):
+
+                if (i == 0) or (j == 0) or (i == n_grids - 1) or (j == n_grids - 1):
+                    widget = OutlineWidget(i, j, thick=True)
+                    self.board_edges[i][j] = widget
+                elif (i%2) and (j%2):
                     # Is a square
                     r = (i - 1) // 2
                     c = (j - 1) // 2
                     widget = SquareWidget(board, r, c, interactive=True)
                     self.board_squares[r][c] = widget
+
                 elif (i%2) and not (j%2):
                     # vertical line
-                    widget = OutlineWidget(i, j, thick=True)
+                    c1, c2 = j//2 - 1, j//2
+                    r = (i - 1) // 2
+                    s1 = self.board.board_segments[r][c1]
+                    s2 = self.board.board_segments[r][c2]
+                    thick = (s1 != s2)
+                    widget = OutlineWidget(i, j, thick=thick)
                     self.board_edges[i][j] = widget
                 elif not (i%2) and (j%2):
                     # horizontal line
-                    widget = OutlineWidget(i, j, thick=True)
+                    r1, r2 = i//2 - 1, i//2
+                    c = (j - 1) // 2
+                    s1 = self.board.board_segments[r1][c]
+                    s2 = self.board.board_segments[r2][c]
+                    thick = (s1 != s2)
+                    widget = OutlineWidget(i, j, thick=thick)
                     self.board_edges[i][j] = widget
                 else:
                     # corner
-                    widget = OutlineWidget(i, j, thick=True)
+                    r1, r2 = i//2 - 1, i//2
+                    c1, c2 = j//2 - 1, j//2
+                    s1 = self.board.board_segments[r1][c1]
+                    s2 = self.board.board_segments[r1][c2]
+                    s3 = self.board.board_segments[r2][c1]
+                    s4 = self.board.board_segments[r2][c2]
+                    thick = (s1 != s2 or s1 != s3 or s1 != s4)
+                    widget = OutlineWidget(i, j, thick=thick)
                     self.board_edges[i][j]
                 layout.addWidget(widget, i, j)
         layout.setSpacing(0)
@@ -200,6 +219,18 @@ class GameBoardWidget(QWidget):
         Mark invalid stars as red
         Mark solved board as all blue
         """
+        n = self.board.board_size
+
+        for r in range(n):
+            for c in range(n):
+                if self.board.win:
+                    color = QColor('Blue')
+                else:
+                    if self.board.board_state[r][c] == 1 and self.board.invalid[r][c]:
+                        color = QColor('Red')
+                    else:
+                        color = QColor('Black')
+                self.board_squares[r][c].update_square(color=color)
 
 class SolverBoardWidget(QWidget):
     """
@@ -207,7 +238,85 @@ class SolverBoardWidget(QWidget):
     """
     def __init__(self, board: Board, solver: Solver):
         super().__init__()
+        self.board = board
+        self.solver = solver
 
+        layout = QGridLayout()
+
+        # Add outlines and board squares in a grid
+        n_squares = self.board.board_size
+        n_grids = 2 * n_squares + 1
+
+        self.board_squares = [[None] * n_squares for _ in range(n_squares)]
+        self.board_edges = [[None] * n_grids for _ in range(n_grids)]
+
+        # Read through the board and add all outline and square elements to the layout
+        for i in range(n_grids):
+            for j in range(n_grids):
+
+                if (i == 0) or (j == 0) or (i == n_grids - 1) or (j == n_grids - 1):
+                    widget = OutlineWidget(i, j, thick=True)
+                    self.board_edges[i][j] = widget
+                elif (i%2) and (j%2):
+                    # Is a square
+                    r = (i - 1) // 2
+                    c = (j - 1) // 2
+                    widget = SquareWidget(board, r, c, interactive=True)
+                    self.board_squares[r][c] = widget
+
+                elif (i%2) and not (j%2):
+                    # vertical line
+                    c1, c2 = j//2 - 1, j//2
+                    r = (i - 1) // 2
+                    s1 = self.board.board_segments[r][c1]
+                    s2 = self.board.board_segments[r][c2]
+                    thick = (s1 != s2)
+                    widget = OutlineWidget(i, j, thick=thick)
+                    self.board_edges[i][j] = widget
+                elif not (i%2) and (j%2):
+                    # horizontal line
+                    r1, r2 = i//2 - 1, i//2
+                    c = (j - 1) // 2
+                    s1 = self.board.board_segments[r1][c]
+                    s2 = self.board.board_segments[r2][c]
+                    thick = (s1 != s2)
+                    widget = OutlineWidget(i, j, thick=thick)
+                    self.board_edges[i][j] = widget
+                else:
+                    # corner
+                    r1, r2 = i//2 - 1, i//2
+                    c1, c2 = j//2 - 1, j//2
+                    s1 = self.board.board_segments[r1][c1]
+                    s2 = self.board.board_segments[r1][c2]
+                    s3 = self.board.board_segments[r2][c1]
+                    s4 = self.board.board_segments[r2][c2]
+                    thick = (s1 != s2 or s1 != s3 or s1 != s4)
+                    widget = OutlineWidget(i, j, thick=thick)
+                    self.board_edges[i][j]
+                layout.addWidget(widget, i, j)
+        layout.setSpacing(0)
+        self.setLayout(layout)
+
+    def update(self):
+        """
+        Update all squares to match the board state
+
+        0: empty, 1: star, 2: x
+        Mark invalid stars as red
+        Mark solved board as all blue
+        """
+        n = self.board.board_size
+
+        for r in range(n):
+            for c in range(n):
+                if self.board.win:
+                    color = QColor('Blue')
+                else:
+                    if self.board.board_state[r][c] == 1 and self.board.invalid[r][c]:
+                        color = QColor('Red')
+                    else:
+                        color = QColor('Black')
+                self.board_squares[r][c].update_square(color=color)
 
 class GameGUI(QMainWindow):
     """Main GUI for the Star Battle or Queens game."""
@@ -243,14 +352,7 @@ class GameGUI(QMainWindow):
         layout = QHBoxLayout()
         central_widget.setLayout(layout)
 
-        # self.makeOutlineArray()
-
-        # game_board_layout = self.createGameLayout()
-        # layout.addLayout(game_board_layout)
-
-        # solver_board_layout = self.createSolverLayout()
-        # layout.addLayout(solver_board_layout)
-
+        # Create the game widget
         game_layout = QVBoxLayout()
         game_label = QLabel('Game')
         game_label.setAlignment(Qt.AlignCenter)
@@ -258,8 +360,10 @@ class GameGUI(QMainWindow):
         game_layout.addWidget(self.game_widget)
         game_layout.addStretch(0)
 
+        # Create the solver widget
         solver_layout = QVBoxLayout()
         solver_label = QLabel('Solver')
+        solver_label.setAlignment(Qt.AlignCenter)
         solver_layout.addWidget(solver_label)
         solver_layout.addWidget(self.solver_widget)
         solver_layout.addStretch(0)
@@ -267,185 +371,17 @@ class GameGUI(QMainWindow):
         layout.addLayout(game_layout)
         layout.addLayout(solver_layout)
 
-    def makeOutlineArray(self):
-        n = self.board.board_size * 2 + 1
-
-        self.gameOutlines = [[0] * n for _ in range(n)]
-        self.solverOutlines = [[0] * n for _ in range(n)]
-
-        for i in range(n):
-            for j in range(n):
-                if (i == 0) or (j == 0) or (i >= n - 1) or (j >= n - 1):
-                   # Outline is necessarily thick
-                   self.gameOutlines[i][j] = OutlineWidget(i, j, True)
-                   self.solverOutlines[i][j] = OutlineWidget(i, j, True)
-                   continue
-                if i%2 and j%2:
-                    # This square has no outline (is a square or star or empty)
-                    continue
-                elif i%2 and not j%2:
-                    # Vertical line
-                    c1, c2 = j//2 - 1, j//2
-                    r = (i - 1) // 2
-                    s1 = self.board.board_segments[r][c1]
-                    s2 = self.board.board_segments[r][c2]
-                    thick = (s1 != s2)
-                elif not i%2 and j%2:
-                    # Horizontal line
-                    r1, r2 = i//2 - 1, i//2
-                    c = (j - 1) // 2
-                    s1 = self.board.board_segments[r1][c]
-                    s2 = self.board.board_segments[r2][c]
-                    thick = (s1 != s2)
-                else:
-                    r1, r2 = i//2 - 1, i//2
-                    c1, c2 = j//2 - 1, j//2
-
-                    s1 = self.board.board_segments[r1][c1]
-                    s2 = self.board.board_segments[r1][c2]
-                    s3 = self.board.board_segments[r2][c1]
-                    s4 = self.board.board_segments[r2][c2]
-                    thick = (s1 != s2 or s1 != s3 or s1 != s4)
-
-                self.gameOutlines[i][j] = OutlineWidget(i, j, thick)
-                self.solverOutlines[i][j] = OutlineWidget(i, j, thick)
-
-    def createGameLayout(self):
-        """Sets up the game board section of the UI"""
-        layout = QVBoxLayout()
-        label = QLabel('Game')
-        label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(label)
-        board_layout = QGridLayout()
-
-        self.gameSquares = []  # Keep track of square widgets
-
-        # Create all board buttons
-        n = self.board.board_size
-        for r in range(n):
-            row = []
-            for c in range(n):
-                square = SquareWidget(self.board, r, c, interactive=True)
-                row.append(square)
-            self.gameSquares.append(row)
-
-        # Add outline and board square widgets to the UI
-        n_widgets = 2 * self.board.board_size + 1
-        for i in range(n_widgets):
-            for j in range(n_widgets):
-                if i%2 and j%2:
-                    # Both indeces are odd: this is a square cell
-                    r = (i - 1) // 2
-                    c = (j - 1) // 2
-                    board_layout.addWidget(self.gameSquares[r][c], i, j)
-                else:
-                    board_layout.addWidget(self.gameOutlines[i][j], i, j)
-        board_layout.setSpacing(0)
-        layout.addLayout(board_layout)
-
-        layout.addStretch(0)
-        return layout
-
-    def createSolverLayout(self):
-        """Sets up the solver board section of the UI"""
-        layout = QVBoxLayout()
-        label = QLabel('Solver')
-        label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(label)
-
-        self.solverSquares = []
-
-        board_layout = QGridLayout()
-        # Create all board buttons
-        n = self.board.board_size
-        for r in range(n):
-            row = []
-            for c in range(n):
-                square = SquareWidget(self.board, r, c, interactive=False)
-                row.append(square)
-            self.solverSquares.append(row)
-
-        # Add outline and board square widgets to the UI
-        n_widgets = 2 * self.board.board_size + 1
-        for i in range(n_widgets):
-            for j in range(n_widgets):
-                if i%2 and j%2:
-                    # Both indeces are odd: this is a square cell
-                    r = (i - 1) // 2
-                    c = (j - 1) // 2
-                    board_layout.addWidget(self.solverSquares[r][c], i, j)
-                else:
-                    board_layout.addWidget(self.solverOutlines[i][j], i, j)
-        board_layout.setSpacing(0)
-        layout.addLayout(board_layout)
-
-        layout.addStretch(0)
-        return layout
-
-    def updateBoard(self):
+    def updateBoards(self):
         """
         Update the board squares to match the board
 
         Also scan for invalid stars
         Also scan for wins
         """
-        n = self.board.board_size
-        b = self.board.board_state
-
-        # Check if any stars are invalid
-        invalid = [[False] * n for _ in range(n)]
-
-        # Check Adjacency
-        for r in range(n):
-            for c in range(n):
-                for dr, dc in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
-                    rr = r + dr
-                    cc = c + dc
-                    if (rr < 0) or (rr > n - 1) or (cc < 0) or (cc > n - 1):
-                        continue
-                    if b[r][c] == 1 and b[rr][cc] == 1:
-                        invalid[r][c] = True
-
-        # Check rows
-        for r in range(n):
-            row_count = 0
-            for c in range(n):
-                if b[r][c] == 1:
-                    row_count += 1
-            if row_count > 2:
-                for c in range(n):
-                    if b[r][c] == 1:
-                        invalid[r][c] = True
-
-        # Check cols
-        for c in range(n):
-            col_count = 0
-            for r in range(n):
-                if b[r][c] == 1:
-                    col_count += 1
-            if col_count > 2:
-                for r in range(n):
-                    if b[r][c] == 1:
-                        invalid[r][c] = True
-
-        # Check segments
-
-        # Check if board state is winning
-        # Update any invalid squares
-        star_count = 0
-        any_invalid = False
-        for r in range(n):
-            for c in range(n):
-                if b[r][c] == 1:
-                    star_count += 1
-                any_invalid |= invalid[r][c]
-
-                color = QColor('Red') if invalid[r][c] else QColor('Black')
-                self.gameSquares[r][c].update_square(color=color)
-                self.solverSquares[r][c].update_square(color=color)
-
+        self.game_widget.update()
+        self.solver_widget.update()
         # If board is winning, call the win method
-        if star_count == (self.board.n_stars * self.board.board_size) and not any_invalid:
+        if self.board.win:
             # Win!
             self.win()
 
@@ -454,16 +390,7 @@ class GameGUI(QMainWindow):
         Function to handle winning the game
         """
         # Update the label to say: "Game: You Win!"
-
-        # Update the stars on the board
-        n = self.board.board_size
-        for r in range(n):
-            for c in range(n):
-                # Make stars blue
-                if self.board.board_state[r][c] == 1:
-                    color = QColor('Blue')
-                    self.gameSquares[r][c].update_square(color=color)
-                    self.solverSquares[r][c].update_square(color=color)
+        print(f"Game won!")
 
     def run(self):
         """Runs the GUI application."""

@@ -20,10 +20,10 @@ def main():
 
     # Initialize the game board
     board = Board()
-    if args.board:
+    if args.board_img:
         try:
-            board.load_from_image(args.board)
-            print(f"Loaded board from {args.board}")
+            board.load_from_image(args.board_img)
+            print(f"Loaded board from {args.board_img}")
         except Exception as e:
             print(f"Error loading board: {e}")
             sys.exit(1)
