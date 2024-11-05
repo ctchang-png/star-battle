@@ -261,7 +261,7 @@ class SolverBoardWidget(QWidget):
                     # Is a square
                     r = (i - 1) // 2
                     c = (j - 1) // 2
-                    widget = SquareWidget(board, r, c, interactive=True)
+                    widget = SquareWidget(board, r, c, interactive=False)
                     self.board_squares[r][c] = widget
 
                 elif (i%2) and not (j%2):
@@ -316,7 +316,13 @@ class SolverBoardWidget(QWidget):
                         color = QColor('Red')
                     else:
                         color = QColor('Black')
-                self.board_squares[r][c].update_square(color=color)
+
+                background = QColor('White')
+                if self.solver.information_grid[r][c] == 1:
+                    background = QColor(0, 100, 0, 128)
+                elif self.solver.information_grid[r][c] == 2:
+                    background = QColor(100, 0, 0, 128)
+                self.board_squares[r][c].update_square(color=color, background=background)
 
 class GameGUI(QMainWindow):
     """Main GUI for the Star Battle or Queens game."""
@@ -340,6 +346,7 @@ class GameGUI(QMainWindow):
 
 
         self.initUI()
+        self.updateBoards()
 
     def initUI(self):
         """Sets up the main window and grid layout."""
