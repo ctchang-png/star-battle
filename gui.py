@@ -84,9 +84,6 @@ class SquareWidget(QLabel):
             curr_state = b[self.r][self.c]
             new_state = 2 if curr_state != 2 else 0  # Toggle between 0 and 1
         b[self.r][self.c] = new_state
-        
-        # Update the board and calculate any checks
-        self.board.update()
 
         # GameGUI->CentralWidget->BoardWidget->SquareWidget
         boardWidget = self.parent()
@@ -318,10 +315,12 @@ class SolverBoardWidget(QWidget):
                         color = QColor('Black')
 
                 background = QColor('White')
-                if self.solver.information_grid[r][c] == 1:
-                    background = QColor(0, 100, 0, 128)
-                elif self.solver.information_grid[r][c] == 2:
+                if self.solver.information_grid[r][c] == 3:
+                    background = QColor(0, 0, 200, 128)
+                elif self.solver.information_grid[r][c] == 4:
                     background = QColor(100, 0, 0, 128)
+                elif self.solver.information_grid[r][c] == 5:
+                    background = QColor(0, 100, 0, 128)
                 self.board_squares[r][c].update_square(color=color, background=background)
 
 class GameGUI(QMainWindow):
@@ -385,6 +384,8 @@ class GameGUI(QMainWindow):
         Also scan for invalid stars
         Also scan for wins
         """
+        self.board.update()
+        self.solver.update()
         self.game_widget.update()
         self.solver_widget.update()
         # If board is winning, call the win method
