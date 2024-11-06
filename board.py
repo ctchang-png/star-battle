@@ -91,7 +91,7 @@ class Board():
             for c in range(n):
                 if b[r][c] == 1:
                     row_count += 1
-            if row_count > 2:
+            if row_count > self.n_stars:
                 for c in range(n):
                     invalid[r][c] = True
 
@@ -101,7 +101,7 @@ class Board():
             for r in range(n):
                 if b[r][c] == 1:
                     col_count += 1
-            if col_count > 2:
+            if col_count > self.n_stars:
                 for r in range(n):
                     invalid[r][c] = True
 
@@ -111,7 +111,7 @@ class Board():
             for r, c in s.squares:
                 if self.board_state[r][c] == 1:
                     seg_count += 1
-            if seg_count > 2:
+            if seg_count > self.n_stars:
                 for r, c in s.squares:
                     invalid[r][c] = True
 

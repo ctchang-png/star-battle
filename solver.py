@@ -96,6 +96,8 @@ class Solver():
     def update1StarSegs(self):
         """
         Scan the board and build all segments that require 1 star
+
+        TODO: Need to scan for stars present to determine if there is or is not a 1 star seg of this type. Consider tracking stars for each row, col, segment to board to easily access this
         """
         n = self.board.board_size
         b = self.board.board_state
@@ -116,7 +118,7 @@ class Solver():
             for r in range(n):
                 if b[r][c] == 0:
                     v_seg.squares.append((r, c))
-            vertical_segs.append(h_seg)
+            vertical_segs.append(v_seg)
 
         # Sub segs:
         sub_segs = []
@@ -145,6 +147,8 @@ class Solver():
         # Adjacency constraints
         # No star may block a region that must contain a star
         for segment in self.one_star_segs:
+            if not segment.squares:
+                continue
             # Map of items blocking this segment
             seg_blocking = None
             for r, c in segment.squares:
@@ -157,8 +161,7 @@ class Solver():
 
                 if seg_blocking is None:
                     seg_blocking = mask
-                else:
-                    seg_blocking = np.bitwise_and(seg_blocking, mask)
+                seg_blocking = np.bitwise_and(seg_blocking, mask)
             blocking = np.bitwise_or(seg_blocking, blocking)
 
         # Set info array from blocking
