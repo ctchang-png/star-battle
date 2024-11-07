@@ -48,50 +48,28 @@ class Solver():
         """
         n = self.board.board_size
         b = self.board.board_state
-        # Rows 
-        for r in range(n):
-            star_count = 0
-            for c in range(n):
-                if b[r][c] == 1:
-                    star_count += 1
-            if star_count >= self.board.n_stars:
-                for c in range(n):
-                    if b[r][c] == 0:
-                        self.information_grid[r][c] = 4
-        
-        # Cols 
-        for c in range(n):
-            star_count = 0
-            for r in range(n):
-                if b[r][c] == 1:
-                    star_count += 1
-            if star_count >= self.board.n_stars:
-                for r in range(n):
-                    if b[r][c] == 0:
-                        self.information_grid[r][c] = 4
 
-        # Segment
-        for s in self.board.segments:
-            star_count = 0
-            for r, c in s.squares:
-                if b[r][c] == 1:
-                    star_count += 1
-            if star_count >= self.board.n_stars:
-                for r, c in s.squares:
-                    if b[r][c] == 0:
-                        self.information_grid[r][c] = 4
-
-        # Adjacent
+        # For each square
         for r in range(n):
             for c in range(n):
-                if b[r][c] != 1:
+                # Only mark open squares
+                if b[r][c] != 0:
                     continue
+                segment = self.board.board_segments[r][c]
+                # Square is blocked if row, col, segment is full
+                if self.board.row_stars[r] >= self.board.n_stars:
+                    self.information_grid[r][c] = 4
+                if self.board.col_stars[c] >= self.board.n_stars:
+                    self.information_grid[r][c] = 4
+                if self.board.seg_stars[segment] >= self.board.n_stars:
+                    self.information_grid[r][c] = 4
+                # Square is blocked if an adjacent star exists
                 for dr, dc in [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]:
                     rr, cc = r + dr, c + dc
                     if (rr < 0) or (cc < 0) or (rr >= n) or (cc >= n):
                         continue
-                    if b[rr][cc] == 0:
-                        self.information_grid[rr][cc] = 4
+                    if b[rr][cc] == 1:
+                        self.information_grid[r][c] = 4
 
     def update1StarSegs(self):
         """
@@ -105,6 +83,8 @@ class Solver():
         # Horizontal slices
         horizontal_segs = []
         for r in range(n):
+            if self.board.row_stars[r] >= self.board.n_stars:
+                continue
             h_seg = Segment()
             for c in range(n):
                 if b[r][c] == 0:
@@ -114,6 +94,8 @@ class Solver():
         # Vertical slices
         vertical_segs = []
         for c in range(n):
+            if self.board.col_stars[c] >= self.board.n_stars:
+                continue
             v_seg = Segment()
             for r in range(n):
                 if b[r][c] == 0:
@@ -122,7 +104,9 @@ class Solver():
 
         # Sub segs:
         sub_segs = []
-        for s in self.board.segments:
+        for i, s in enumerate(self.board.segments):
+            if self.board.seg_stars[i] >= self.board.n_stars:
+                continue
             s_seg = Segment()
             for r, c in s.squares:
                 if b[r][c] == 0:

@@ -29,6 +29,11 @@ class Board():
         # List of segment objects in board
         self.segments = []
 
+        # Maintain a cout of stars in each row, col and segment
+        self.row_stars = None
+        self.col_stars = None
+        self.seg_stars = None
+
         # Locations where star placement is not valid
         self.invalid = None
 
@@ -42,14 +47,33 @@ class Board():
         Mark invalid stars
         Record if board is a win
         """
+        # Update the star count of each row, col and segment
+        self.update_star_count()
+
         # Update the segments and sub-segs
         self.update_segments()
+
         # Update the invalid squares
         self.update_invalid()
 
         # Check if board state is winning
         self.update_win()
     
+    def update_star_count(self):
+        n = self.board_size
+
+        self.row_stars = [0] * n
+        self.col_stars = [0] * n
+        self.seg_stars = [0] * n
+
+        for r in range(n):
+            for c in range(n):
+                if self.board_state[r][c] == 1:
+                    self.row_stars[r] += 1
+                    self.col_stars[c] += 1
+                    self.seg_stars[self.board_segments[r][c]] += 1
+
+
     def update_segments(self):
         # Update all segment objects based on board
         if not self.segments:
@@ -62,7 +86,9 @@ class Board():
             for r in range(self.board_size):
                 for c in range(self.board_size):
                     s = self.board_segments[r][c]
-                    self.segments[s - 1].squares.append((r,c))
+                    print(self.board_segments)
+                    print(r, c, s)
+                    self.segments[s].squares.append((r,c))
 
             
 
@@ -73,47 +99,24 @@ class Board():
         # Check if any stars are invalid
         invalid = [[False] * n for _ in range(n)]
 
-        # Check Adjacency
+        # For all squares
         for r in range(n):
             for c in range(n):
+                # Mark stars as invalid if 
                 if b[r][c] != 1:
                     continue
+
+                # An adjacent star is present
                 for dr, dc in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
                     rr = r + dr
                     cc = c + dc
                     if (rr < 0) or (rr > n - 1) or (cc < 0) or (cc > n - 1):
                         continue
-                    invalid[rr][cc] = True
-
-        # Check rows
-        for r in range(n):
-            row_count = 0
-            for c in range(n):
-                if b[r][c] == 1:
-                    row_count += 1
-            if row_count > self.n_stars:
-                for c in range(n):
-                    invalid[r][c] = True
-
-        # Check cols
-        for c in range(n):
-            col_count = 0
-            for r in range(n):
-                if b[r][c] == 1:
-                    col_count += 1
-            if col_count > self.n_stars:
-                for r in range(n):
-                    invalid[r][c] = True
-
-        # Check segments
-        for s in self.segments:
-            seg_count = 0
-            for r, c in s.squares:
-                if self.board_state[r][c] == 1:
-                    seg_count += 1
-            if seg_count > self.n_stars:
-                for r, c in s.squares:
-                    invalid[r][c] = True
+                    invalid[r][c] |= (b[rr][cc] == 1)
+                
+                invalid[r][c] |= (self.row_stars[r] > self.n_stars)
+                invalid[r][c] |= (self.col_stars[c] > self.n_stars)
+                invalid[r][c] |= (self.seg_stars[self.board_segments[r][c]] > self.n_stars)
 
         self.invalid = invalid
 
@@ -177,8 +180,8 @@ class Board():
         # Create segemt and board map
         curr_seg = 1
         board_segments = [[0] * n for _ in range(n)]
-        for r in range(0, n):
-            for c in range(0, n):
+        for r in range(n):
+            for c in range(n):
                 x, y = int(c/n * w + w/(2*n)), int(r/n * h + h/(2*n))
 
                 if flooded[y, x] == 0:
@@ -188,6 +191,11 @@ class Board():
                     curr_seg += 1
 
                 board_segments[r][c] = flooded[y, x]
+
+        # 0 index segments
+        for r in range(n):
+            for c in range(n):
+                board_segments[r][c] -= 1
 
         # Update the read state of the board
         board_state = [[0] * n for _ in range(n)]

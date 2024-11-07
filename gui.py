@@ -38,8 +38,6 @@ class SquareWidget(QLabel):
         Updates the display based on the square's state.
         
         board.board_state[r][c] denotes symbol: 0 empty, 1 star, 2 X
-        board.invalid[r][c] denotes if (r,c) is an invalid star location
-        board.winning denotes if board is a win
 
         symbol color is black by default, red for invalid stars, blue for winning stars
         background color is white by default, can be colored by segment

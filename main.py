@@ -4,6 +4,15 @@ from board import Board, DefaultBoard
 from solver import Solver
 from gui import GameGUI
 from PyQt5.QtWidgets import QApplication
+import os
+from pathlib import Path
+import PyQt5
+
+
+os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = os.fspath(
+    Path(PyQt5.__file__).resolve().parent / "Qt5" / "plugins"
+)
+
 
 def main():
     # Set up command-line argument parsing
