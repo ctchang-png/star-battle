@@ -35,12 +35,18 @@ class Solver():
         # Update the segments where 1 star is required
         self.update1StarSegs()
 
-        # Update the overlap from mandatory regions
+        # Update regions that block 1 star regions completely
         self.update1StarBlocked()
 
-        # Mark location of deduced information
-        # Mark 3 on all segments of size 1 that require 1 star
-        # Mark 4 on all segments that require 1 star
+        # Update the locations where stars must be (1 star regions of size 1)
+        self.update1StarMandatory()
+
+        # Information grid:
+        # 0 for empty or no info
+        # 1 for star placed on board
+        # 2 for x placed on board
+        # 3 for star must be placed here
+        # 4 for x must be placed here
 
     def updateBlocked(self):
         """
@@ -75,7 +81,6 @@ class Solver():
         """
         Scan the board and build all segments that require 1 star
 
-        TODO: Need to scan for stars present to determine if there is or is not a 1 star seg of this type. Consider tracking stars for each row, col, segment to board to easily access this
         """
         n = self.board.board_size
         b = self.board.board_state
@@ -83,6 +88,8 @@ class Solver():
         # Horizontal slices
         horizontal_segs = []
         for r in range(n):
+            if (self.board.n_stars - self.board.row_stars[r]) != 1:
+                continue
             if self.board.row_stars[r] >= self.board.n_stars:
                 continue
             h_seg = Segment()
@@ -94,6 +101,8 @@ class Solver():
         # Vertical slices
         vertical_segs = []
         for c in range(n):
+            if (self.board.n_stars - self.board.col_stars[c]) != 1:
+                continue
             if self.board.col_stars[c] >= self.board.n_stars:
                 continue
             v_seg = Segment()
@@ -105,6 +114,8 @@ class Solver():
         # Sub segs:
         sub_segs = []
         for i, s in enumerate(self.board.segments):
+            if (self.board.n_stars - self.board.seg_stars[i]) != 1:
+                continue
             if self.board.seg_stars[i] >= self.board.n_stars:
                 continue
             s_seg = Segment()
@@ -117,19 +128,31 @@ class Solver():
         self.one_star_segs = all_segs
             
     def update1StarBlocked(self):
+        """
+        Update all board locations with (X required) that block a 1 star seg
+        """
         n = self.board.board_size
 
         blocking = [[False] * n for _ in range(n)]
 
-        # Row constraints
+        # Segment constraints
+        # If segment s2 is a sub-seg of segment s1, block all squares in s1 that are not in s2
+        for s1 in self.one_star_segs:
+            s1_set = set(s1.squares)
+            for s2 in self.one_star_segs:
+                if len(s2.squares) >= len(s1.squares):
+                    continue
+                s2_set = set(s2.squares)
+                if not s2_set.issubset(s1_set):
+                    continue
 
-        # Col constraints
-
-        # Seg constraints
-
+                # X all non-overlapping locations
+                for r, c in (s1_set - s2_set):
+                    blocking[r][c] = True
+                
 
         # Adjacency constraints
-        # No star may block a region that must contain a star
+        # If placing a star at a square would X a 1 star seg, block this square
         for segment in self.one_star_segs:
             if not segment.squares:
                 continue
@@ -155,3 +178,13 @@ class Solver():
                     continue
                 if self.information_grid[r][c] == 0:
                     self.information_grid[r][c] = 4
+
+    def update1StarMandatory(self):
+        """
+        Update all squares where 1 star is necessarily located
+        """
+
+        for s in self.one_star_segs:
+            if len(s.squares) == 1:
+                r, c = s.squares[0]
+                self.information_grid[r][c] = 3

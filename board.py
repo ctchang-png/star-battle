@@ -86,8 +86,6 @@ class Board():
             for r in range(self.board_size):
                 for c in range(self.board_size):
                     s = self.board_segments[r][c]
-                    print(self.board_segments)
-                    print(r, c, s)
                     self.segments[s].squares.append((r,c))
 
             
